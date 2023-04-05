@@ -9,38 +9,34 @@ import (
 	"os"
 	"os/user"
 
+	badger "github.com/dgraph-io/badger/v4"
 	"github.com/spf13/cobra"
 )
 
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Command to initialize database and private,public keys",
+	Long:  ``,
 
 	//Functionality of command
 	Run: func(cmd *cobra.Command, args []string) {
 
 		//Fetch values of flags
 		confDir, _ := cmd.Flags().GetString("db")
-		privKey, _ := cmd.Flags().GetString("priv")
-		pubKey, _ := cmd.Flags().GetString("pub")
+		privKeyLoc, _ := cmd.Flags().GetString("priv")
+		pubKeyLoc, _ := cmd.Flags().GetString("pub")
 
 		//Validation - check if files exists
-		if _, err := os.Stat(privKey); os.IsNotExist(err) {
+		if _, err := os.Stat(privKeyLoc); os.IsNotExist(err) {
 			log.Fatal("Private Key does not exist")
 		}
 
-		if _, err := os.Stat(pubKey); os.IsNotExist(err) {
+		if _, err := os.Stat(pubKeyLoc); os.IsNotExist(err) {
 			log.Fatal("Public Key does not exist")
 		}
 
-		// If conf dir doesn't exist, create the dir
+		// If conf dir doesn't exist, create the dir and the database
 		if _, err := os.Stat(confDir); os.IsNotExist(err) {
 			err := os.Mkdir(confDir, os.ModePerm)
 
@@ -48,6 +44,36 @@ to quickly create a Cobra application.`,
 				log.Fatal("Unable to create directory")
 			}
 			fmt.Println("Created directory")
+
+			dbLoc := fmt.Sprintf("%s/pawman.db", confDir)
+
+			db, err := badger.Open(badger.DefaultOptions(dbLoc))
+			if err != nil {
+				log.Fatal("Unable to create database")
+			}
+
+			defer db.Close()
+
+			//Store private and public key locations
+			err = db.Update(func(txn *badger.Txn) error {
+				err := txn.Set([]byte("privKey"), []byte(privKeyLoc))
+				return err
+			})
+
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			err = db.Update(func(txn *badger.Txn) error {
+				err := txn.Set([]byte("pubKey"), []byte(pubKeyLoc))
+				return err
+			})
+
+			if err != nil {
+				log.Fatalf(err.Error())
+			}
+
+			fmt.Println("Pawman Initialized")
 		}
 	},
 }
@@ -71,7 +97,7 @@ func init() {
 	privKey := fmt.Sprintf("%s/.ssh/id_rsa", user.HomeDir)
 	pubKey := fmt.Sprintf("%s/.ssh/id_rsa.pub", user.HomeDir)
 
-	// Define Flags for rootDir, private, public keys
+	// Define Flags for rootDir, private, public keys with default values
 	initCmd.Flags().StringP("db", "d", rootDir, "Absolute Path")
 	initCmd.Flags().StringP("priv", "r", privKey, "Absolute Path")
 	initCmd.Flags().StringP("pub", "u", pubKey, "Absolute Path")
