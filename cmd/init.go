@@ -23,7 +23,7 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		//Fetch values of flags
-		confDir, _ := cmd.Flags().GetString("db")
+		dbDir, _ := cmd.Flags().GetString("db")
 		privKeyLoc, _ := cmd.Flags().GetString("priv")
 		pubKeyLoc, _ := cmd.Flags().GetString("pub")
 
@@ -37,17 +37,15 @@ var initCmd = &cobra.Command{
 		}
 
 		// If conf dir doesn't exist, create the dir and the database
-		if _, err := os.Stat(confDir); os.IsNotExist(err) {
-			err := os.Mkdir(confDir, os.ModePerm)
+		if _, err := os.Stat(dbDir); os.IsNotExist(err) {
+			err := os.Mkdir(dbDir, os.ModePerm)
 
 			if err != nil {
 				log.Fatal("Unable to create directory")
 			}
 			fmt.Println("Created directory")
 
-			dbLoc := fmt.Sprintf("%s/pawman.db", confDir)
-
-			db, err := badger.Open(badger.DefaultOptions(dbLoc))
+			db, err := badger.Open(badger.DefaultOptions(dbDir))
 			if err != nil {
 				log.Fatal("Unable to create database")
 			}
@@ -88,7 +86,7 @@ func init() {
 	}
 
 	// Database - $HOME/.pawman/
-	rootDir := fmt.Sprintf("%s/.pawman", user.HomeDir)
+	dbDir := fmt.Sprintf("%s/.pawman", user.HomeDir)
 
 	//Default SSH keys location :
 	//$HOME/.ssh/id_rsa --private key
@@ -98,7 +96,7 @@ func init() {
 	pubKey := fmt.Sprintf("%s/.ssh/id_rsa.pub", user.HomeDir)
 
 	// Define Flags for rootDir, private, public keys with default values
-	initCmd.Flags().StringP("db", "d", rootDir, "Absolute Path")
+	initCmd.Flags().StringP("db", "d", dbDir, "Absolute Path")
 	initCmd.Flags().StringP("priv", "r", privKey, "Absolute Path")
 	initCmd.Flags().StringP("pub", "u", pubKey, "Absolute Path")
 
