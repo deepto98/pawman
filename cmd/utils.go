@@ -81,6 +81,8 @@ func EncryptWithPublicKey(pubKeyLoc string, ciphertext bytes.Buffer) ([]byte, er
 	rsaPub := pubCrypto.(*rsa.PublicKey)
 
 	// 3. Encrypt the binary
+	// fmt.Println(len(ciphertext.Bytes()))
+	// fmt.Println(rsaPub.Size() - 2*sha256.New().Size() - 2)
 	encryptedBytes, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPub, ciphertext.Bytes(), nil)
 	if err != nil {
 		return nil, errors.New(err.Error())

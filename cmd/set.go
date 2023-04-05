@@ -52,7 +52,7 @@ var setCmd = &cobra.Command{
 
 		defer db.Close()
 
-		// Fetch value
+		// Fetch public key from db
 		var pubKey []byte
 		err = db.View(func(txn *badger.Txn) error {
 			item, err := txn.Get([]byte("pubKey"))
