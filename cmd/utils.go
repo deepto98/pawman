@@ -13,6 +13,12 @@ const (
 	NonceSize = 24
 )
 
+type EncryptPayload struct {
+	EncryptionKey *[KeySize]byte
+	Nonce         *[NonceSize]byte
+	Ciphertext    []byte
+}
+
 // Func to generate key
 func GenerateKey() (*[KeySize]byte, error) {
 	key := new([KeySize]byte)

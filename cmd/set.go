@@ -4,6 +4,13 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
+	"log"
+	"os/user"
+
+	badger "github.com/dgraph-io/badger/v4"
 	"github.com/spf13/cobra"
 )
 
@@ -13,12 +20,56 @@ var setCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		key, _ := cmd.Flags().GetString("key")
+		// key, _ := cmd.Flags().GetString("key")
 		pwd, _ := cmd.Flags().GetString("pwd")
 
-		//Encrypting pwd with a symmetric key,nonce
+		//1. Encrypting pwd with a symmetric key,nonce
 		ciphertext, encKey, nonce, err := Encrypt([]byte(pwd))
-		//Encrypt symmetric key with SSH public key
+		if err != nil {
+			log.Fatal(err)
+		}
+		var encodedPayload bytes.Buffer
+		payload := gob.NewEncoder(&encodedPayload)
+		err = payload.Encode(EncryptPayload{encKey, nonce, ciphertext})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		//2. Encrypt symmetric key with SSH public key
+
+		//a. Fetch public key
+		user, err := user.Current()
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Database - $HOME/.pawman/
+		dbDir := fmt.Sprintf("%s/.pawman", user.HomeDir)
+		db, err := badger.Open(badger.DefaultOptions(dbDir).WithLogger(nil))
+		if err != nil {
+			log.Fatal("Unable to create database")
+		}
+
+		defer db.Close()
+
+		// Fetch value
+		var valCopy []byte
+		err = db.View(func(txn *badger.Txn) error {
+			item, err := txn.Get([]byte("pubKey"))
+			if err != nil {
+				log.Fatal(err)
+			}
+			// Alternatively, you could also use item.ValueCopy().
+			valCopy, err = item.ValueCopy(nil)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("The answer is: %s\n", valCopy)
+
+			return nil
+		})
+		fmt.Println("Public KEY....................")
+		fmt.Println(string(valCopy))
+
 	},
 }
 
