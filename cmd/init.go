@@ -31,13 +31,23 @@ to quickly create a Cobra application.`,
 		privKey, _ := cmd.Flags().GetString("priv")
 		pubKey, _ := cmd.Flags().GetString("pub")
 
-		//Validation
+		//Validation - check if files exists
 		if _, err := os.Stat(privKey); os.IsNotExist(err) {
 			log.Fatal("Private Key does not exist")
 		}
 
 		if _, err := os.Stat(pubKey); os.IsNotExist(err) {
 			log.Fatal("Public Key does not exist")
+		}
+
+		// If conf dir doesn't exist, create the dir
+		if _, err := os.Stat(confDir); os.IsNotExist(err) {
+			err := os.Mkdir(confDir, os.ModePerm)
+
+			if err != nil {
+				log.Fatal("Unable to create directory")
+			}
+			fmt.Println("Created directory")
 		}
 	},
 }
