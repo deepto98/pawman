@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -20,7 +21,7 @@ var setCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		// key, _ := cmd.Flags().GetString("key")
+		key, _ := cmd.Flags().GetString("key")
 		pwd, _ := cmd.Flags().GetString("pwd")
 
 		//1. Encrypting pwd with a symmetric key,nonce
@@ -28,8 +29,8 @@ var setCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		var encodedPayload bytes.Buffer
-		payload := gob.NewEncoder(&encodedPayload)
+		var encryptedPayload bytes.Buffer
+		payload := gob.NewEncoder(&encryptedPayload)
 		err = payload.Encode(EncryptPayload{encKey, nonce, ciphertext})
 		if err != nil {
 			log.Fatal(err)
@@ -52,24 +53,39 @@ var setCmd = &cobra.Command{
 		defer db.Close()
 
 		// Fetch value
-		var valCopy []byte
+		var pubKey []byte
 		err = db.View(func(txn *badger.Txn) error {
 			item, err := txn.Get([]byte("pubKey"))
 			if err != nil {
 				log.Fatal(err)
 			}
 			// Alternatively, you could also use item.ValueCopy().
-			valCopy, err = item.ValueCopy(nil)
+			pubKey, err = item.ValueCopy(nil)
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Printf("The answer is: %s\n", valCopy)
+			// fmt.Printf("The answer is: %s\n", pubKey)
 
 			return nil
 		})
-		fmt.Println("Public KEY....................")
-		fmt.Println(string(valCopy))
+		// fmt.Println("Public KEY locn....................")
+		// fmt.Println(encryptedPayload.String())
 
+		enc, err := EncryptWithPublicKey(string(pubKey), encryptedPayload)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Write encrypted pwd to db
+		err = db.Update(func(txn *badger.Txn) error {
+			err := txn.Set([]byte(key), []byte(base64.StdEncoding.EncodeToString(enc)))
+			return err
+		})
+		if err != nil {
+			log.Fatal("Unable to write to DB")
+		}
+
+		fmt.Printf("Successfully stored the encrypted value for key: '%s'\n", key)
 	},
 }
 
